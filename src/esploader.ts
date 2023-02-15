@@ -1,6 +1,6 @@
 import { ESPError } from "./error";
 import { Data, deflate, Inflate } from "pako";
-import { Transport } from "./webserial";
+import { Transport } from "./transport";
 import { ROM } from "./targets/rom";
 
 async function magic2Chip(magic: number): Promise<ROM | null> {
