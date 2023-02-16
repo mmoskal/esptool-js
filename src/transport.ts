@@ -1,4 +1,4 @@
-interface TransportIO {
+export interface TransportIO {
   baudrate: number;
   get_info(): string;
   get_pid(): number | undefined;
@@ -8,9 +8,10 @@ interface TransportIO {
   setDTR(state: boolean): Promise<void>;
   connect(baud: number): Promise<void>;
   disconnect(): Promise<void>;
+  change_baud?(number: number): Promise<void>;
 }
 
-class Transport {
+export class Transport {
   public slip_reader_enabled = false;
   public left_over = new Uint8Array(0);
 
@@ -157,12 +158,22 @@ class Transport {
     // # generate a dummy change to DTR so that the set-control-line-state
     // # request is sent with the updated RTS state and the same DTR state
     // Referenced to esptool.py
-    await this.io.setDTR(this._DTR_state);
+    //await this.io.setDTR(this._DTR_state);
   }
 
   async setDTR(state: boolean) {
     this._DTR_state = state;
     await this.io.setDTR(state);
+  }
+
+  async change_baud(baud: number) {
+    if (this.io.change_baud) {
+      await this.io.change_baud(baud);
+      this.left_over = new Uint8Array(0);
+    } else {
+      await this.io.disconnect();
+      await this.io.connect(baud);
+    }
   }
 
   async connect(baud = 115200) {
@@ -174,5 +185,3 @@ class Transport {
     await this.io.disconnect();
   }
 }
-
-export { Transport, TransportIO };

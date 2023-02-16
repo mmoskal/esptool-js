@@ -304,20 +304,20 @@ export class ESPLoader {
         await this.transport.setRTS(false);
         await this.transport.setDTR(false);
       } else {
-        await this.transport.setDTR(false);
-        await this.transport.setRTS(true);
+        await this.transport.setRTS(true); // set RESET
+        await this.transport.setDTR(false); // set BOOT
         await this._sleep(100);
         if (esp32r0_delay) {
           //await this._sleep(1200);
           await this._sleep(2000);
         }
-        await this.transport.setDTR(true);
-        await this.transport.setRTS(false);
+        //await this.transport.setDTR(true);
+        await this.transport.setRTS(false); // release RESET
         if (esp32r0_delay) {
           //await this._sleep(400);
         }
         await this._sleep(50);
-        await this.transport.setDTR(false);
+        await this.transport.setDTR(true); // release BOOT
       }
     }
     let i = 0;
@@ -689,7 +689,7 @@ export class ESPLoader {
   }
 
   toHex(buffer: number | Uint8Array) {
-    return Array.prototype.map.call(buffer, (x) => ("00" + x.toString(16)).slice(-2)).join("");
+    return Array.prototype.map.call(buffer, (x: number) => ("00" + x.toString(16)).slice(-2)).join("");
   }
 
   async flash_md5sum(addr: number, size: number) {
@@ -762,9 +762,7 @@ export class ESPLoader {
     const resp = await this.command(this.ESP_CHANGE_BAUDRATE, pkt);
     this.debug(resp[0].toString());
     this.info("Changed");
-    await this.transport.disconnect();
-    await this._sleep(50);
-    await this.transport.connect(this.baudrate);
+    await this.transport.change_baud(this.baudrate);
     try {
       await this.transport.rawRead(500);
     } catch (e) {

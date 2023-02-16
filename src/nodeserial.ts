@@ -1,5 +1,6 @@
 import { TransportIO } from "./transport";
-import type SerialPort from "serialport";
+import type { SerialPort } from "serialport";
+import type { PortInfo } from "@serialport/bindings-cpp";
 
 function toPromise(f: (cb: (err: any) => void) => void) {
   return new Promise<void>((resolve, reject) => {
@@ -15,13 +16,16 @@ export class NodeSerialIO implements TransportIO {
   private buffers: Buffer[] = [];
   private readCb: (() => void) | undefined;
   private device: SerialPort;
-  private info: SerialPort.PortInfo;
+  private info: PortInfo;
 
   // device should be constructed with autoOpen=false
-  // 
+  //
   constructor(device: { baudRate: number }, info: { path: string }) {
     this.device = device as any;
     this.info = info as any;
+    this.device.on("error", (err) => {
+      console.error(err);
+    });
     this.device.on("data", (buf) => {
       this.buffers.push(buf);
       const f = this.readCb;
@@ -54,7 +58,9 @@ export class NodeSerialIO implements TransportIO {
         if (t) clearTimeout(t);
         const bufs = this.buffers;
         this.buffers = [];
-        resolve(Buffer.concat(bufs));
+        // make sure we return a real Uint8Array here, otherwise we get some random data in for a ride
+        const res = new Uint8Array(Buffer.concat(bufs));
+        resolve(res);
       };
 
       if (timeout > 0) {
@@ -77,11 +83,15 @@ export class NodeSerialIO implements TransportIO {
   async connect(baud: number) {
     if (this.device.isOpen) await this.disconnect();
     this.baudrate = baud;
-    await toPromise((cb) => this.device.update({ baudRate: baud }, cb));
     await toPromise((cb) => this.device.open(cb));
+    // await toPromise((cb) => this.device.update({ baudRate: baud }, cb));
   }
 
   async disconnect() {
     await toPromise((cb) => this.device.close(cb));
+  }
+
+  async change_baud(baud: number): Promise<void> {
+    await toPromise((cb) => this.device.update({ baudRate: baud }, cb));
   }
 }
